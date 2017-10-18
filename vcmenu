@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+shopt -s nullglob globstar
+
+# use --type to autotype password
+#typeit=0
+#if [[ $1 == "--type" ]]; then
+	#typeit=1
+	#shift
+#fi
+
+pwcache="$HOME/.cache/vc_passwords"
+term="/usr/bin/urxvtc"
+
+# check if vc is logged in, otherwise log in
+vc ls >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+    notify-send "vc: Please log in!"
+    $term -e "vc login"
+    exit 1
+fi
+
+while getopts 'f' flag; do
+  case "${flag}" in
+    f) vc ls -r > ${pwcache}
+    exit 0
+  esac
+done
+
+# if cache file does not exist, populate it
+if [ ! -f "$pwcache" ]
+then
+    vc ls -r > ${pwcache}
+fi
+
+# if cache file is older than 120 minutes, reload
+if test `find ${pwcache} -mmin +120`
+then
+    vc ls -r > ${pwcache}
+fi
+
+passwords=( $(vc ls -r) )
+passwords=( $(cat ${pwcache}) )
+
+password=$(printf '%s\n' "${passwords[@]}" | dmenu -p "vc:" "$@")
+
+[[ -n $password ]] || exit
+
+# commented out for later reuse
+# if the vault structure allows it, auto-typing would be a nice feature
+#if [[ $typeit -eq 0 ]]; then
+	#zenity --info --text="$(vc show $password)"
+	#vc show "$password" 2>/dev/null
+#else
+	zenity --info --text="$(vc show $password)" 2>/dev/null
+#fi
+
